@@ -10,6 +10,29 @@ API_KEY = "Your API Key"
 TXT_FILE = 'connections.txt'
 VT_URL = 'https://www.virustotal.com/api/v3/ip_addresses/'
 
+# PID'lere karşılık gelen işlem adlarını saklamak için bir sözlük oluştur
+pid_to_name = {}
+
+# İşlem adlarını ve PID'leri alarak sözlüğe ekleyen bir fonksiyon
+def update_pid_to_name():
+    for proc in psutil.process_iter(['pid', 'name']):
+        pid_to_name[proc.pid] = proc.name()
+
+# Bağlantılarla ilişkilendirilmiş işlem adlarını elde eden bir fonksiyon
+def get_process_name_for_connection(connection_info):
+    pid = get_pid_for_connection(connection_info)
+    if pid in pid_to_name:
+        return pid_to_name[pid]
+    return None
+
+# PID değerini döndüren bir fonksiyon
+def get_pid_for_connection(connection_info):
+    connections = psutil.net_connections(kind='inet')
+    for conn in connections:
+        if conn.raddr and conn.raddr.ip == connection_info[0] and conn.raddr.port == connection_info[1]:
+            return conn.pid
+    return None
+
 def is_valid_ip(ip):
     try:
         socket.inet_aton(ip)
@@ -40,7 +63,7 @@ def initialize_txt_file():
         os.remove(TXT_FILE)
 
     with open(TXT_FILE, 'w') as file:
-        file.write("Timestamp | IP:Port\n")
+        file.write("Timestamp | IP:Port | Application | Virustotal\n")
 
 def load_previous_connections():
     if not os.path.exists(TXT_FILE):
@@ -55,11 +78,11 @@ def load_previous_connections():
             previous_connections.add((ip_port[0], int(ip_port[1])))
         return previous_connections
 
-def save_connection_to_txt(connection_info, vt_result):
+def save_connection_to_txt(connection_info, vt_result, process_name):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     ip, port = connection_info
     with open(TXT_FILE, 'a') as file:
-        file.write(f"{timestamp} | {ip}:{port} | Virustotal Sonucu: {vt_result}\n")
+        file.write(f"{timestamp} | {ip}:{port} | Application: {process_name} | Virustotal: {vt_result}\n")
 
 def list_connections(previous_connections):
     connections = psutil.net_connections(kind='inet')
@@ -79,8 +102,14 @@ def list_connections(previous_connections):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"{timestamp} | {connection_info[0]}:{connection_info[1]}")
         vt_result = check_virustotal(connection_info[0])
-        print(f"Virustotal Sonucu: {vt_result}")
-        save_connection_to_txt(connection_info, vt_result)
+        process_name = get_process_name_for_connection(connection_info)
+        if process_name:
+            print(f"Application: {process_name}")
+            save_connection_to_txt(connection_info, vt_result, process_name)
+        else:
+            print("Application: Null")
+            save_connection_to_txt(connection_info, vt_result, "Null")
+        print(f"Virustotal: {vt_result}\n")
 
     return current_connections
 
@@ -106,10 +135,11 @@ def check_virustotal(ip):
 
 if __name__ == "__main__":
     initialize_txt_file()
+    update_pid_to_name()  # İlk PID ve işlem adlarını yükle
     previous_connections = load_previous_connections()
     try:
         while True:
             previous_connections = list_connections(previous_connections)
             time.sleep(5)
     except KeyboardInterrupt:
-        print("İzleme durduruldu.")
+        print("Stopped")
