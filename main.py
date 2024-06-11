@@ -6,16 +6,34 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# API anahtarını .env dosyasından alın
-API_KEY = "YOUR API KEY"
+API_KEY = "2cba870fc0b465d720ec0cc1290bcd7aa4da19e8858d354a0b35c4aa61c0d299"
 TXT_FILE = 'connections.txt'
 VT_URL = 'https://www.virustotal.com/api/v3/ip_addresses/'
 
-def resolve_ip(ip_address):
+def is_valid_ip(ip):
     try:
-        return socket.gethostbyaddr(ip_address)[0]
-    except socket.herror:
+        socket.inet_aton(ip)
+        return True
+    except socket.error:
+        return False
+
+def is_valid_dns(hostname):
+    try:
+        socket.gethostbyname(hostname)
+        return True
+    except socket.error:
+        return False
+
+def is_local_ip(ip):
+    return ip.startswith("127.") or ip == "localhost"
+
+def resolve_ip(ip_address):
+    if is_valid_ip(ip_address):
         return ip_address
+    elif is_valid_dns(ip_address):
+        return socket.gethostbyname(ip_address)
+    else:
+        return None
 
 def initialize_txt_file():
     if os.path.exists(TXT_FILE):
@@ -29,7 +47,6 @@ def load_previous_connections():
         return set()
     
     with open(TXT_FILE, 'r') as file:
-        # Skip the header line
         file.readline()
         previous_connections = set()
         for line in file:
@@ -53,17 +70,20 @@ def list_connections(previous_connections):
             remote_ip = conn.raddr.ip
             remote_port = conn.raddr.port
             resolved_ip = resolve_ip(remote_ip)
-            connection_info = (resolved_ip, remote_port)
-            current_connections.add(connection_info)
+            if resolved_ip and not is_local_ip(resolved_ip):
+                connection_info = (resolved_ip, remote_port)
+                current_connections.add(connection_info)
 
-            if connection_info not in previous_connections:
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"{timestamp} | {resolved_ip}:{remote_port}")
-                vt_result = check_virustotal(resolved_ip)
-                print(f"Virustotal Sonucu: {vt_result}")
-                save_connection_to_txt(connection_info, vt_result)
+    new_connections = current_connections - previous_connections
+    for connection_info in new_connections:
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"{timestamp} | {connection_info[0]}:{connection_info[1]}")
+        vt_result = check_virustotal(connection_info[0])
+        print(f"Virustotal Sonucu: {vt_result}")
+        save_connection_to_txt(connection_info, vt_result)
 
     return current_connections
+
 
 
 def check_virustotal(ip):
@@ -75,7 +95,6 @@ def check_virustotal(ip):
 
     if response.status_code == 200:
         data = response.json()
-        # Extract a summary from the VirusTotal result
         malicious_votes = data['data']['attributes']['last_analysis_stats']['malicious']
         if malicious_votes > 0:
             result = "Malicious"
@@ -91,6 +110,6 @@ if __name__ == "__main__":
     try:
         while True:
             previous_connections = list_connections(previous_connections)
-            time.sleep(5)  # 5 saniye bekle
+            time.sleep(5)
     except KeyboardInterrupt:
         print("İzleme durduruldu.")
