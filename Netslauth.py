@@ -6,7 +6,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-API_KEY = "2cba870fc0b465d720ec0cc1290bcd7aa4da19e8858d354a0b35c4aa61c0d299"
+API_KEY = "Your API Key"
 TXT_FILE = 'connections.txt'
 VT_URL = 'https://www.virustotal.com/api/v3/ip_addresses/'
 
