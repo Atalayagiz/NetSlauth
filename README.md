@@ -4,6 +4,7 @@ This Python application monitors network connections established by processes on
 ---
 
 Features: 
+
 Real-time Monitoring: Utilizes the psutil library to track network connections established by processes.
 VirusTotal Integration: Queries the VirusTotal API to determine the reputation of remote IP addresses. It assesses whether an IP is malicious or harmless based on VirusTotal analysis.
 Connection Logging: Logs timestamped details of connections, including remote IP addresses and ports, along with the VirusTotal result.
