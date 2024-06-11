@@ -12,7 +12,8 @@ Exception Handling: Handles exceptions gracefully, ensuring uninterrupted monito
 
 ---
 
-Usage: 
+Usage:   
+
 Setup Environment: Ensure the necessary dependencies are installed, including psutil, requests, and dotenv. Set up a .env file with your VirusTotal API key.
 
 Run Application: Execute the Python script to start monitoring network connections. The application will continuously monitor connections until interrupted.
